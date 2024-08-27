@@ -1,0 +1,63 @@
+default:
+  tags:
+    - bash
+    - cicd
+
+stages:
+  - build
+  - codestyle
+  - test
+  - deploy
+
+build_C2_SimpleBashUtils:
+  stage: build
+  script:
+    - cd src/cat
+    - make
+    - cd ../grep
+    - make
+  artifacts:
+    paths:
+      - src/cat/s21_cat
+      - src/grep/s21_grep
+    expire_in: 30 days
+  after_script:
+    - bash src/notify.sh
+
+codestyle_check:
+  stage: codestyle
+  script:
+    - cp materials/linters/.clang-format src/
+    - clang-format -n src/*/*.c src/*/*.h  # Test clang-format to all C and header files in the src directory
+  allow_failure: false
+  when: always
+  after_script:
+    - bash src/notify.sh
+
+integration_tests:
+  stage: test
+  script:
+    - cd src/cat/testing
+    - bash test_cat.sh
+    - cd ../../grep/testing
+    - bash test_grep.sh
+  allow_failure: false
+  when: on_success
+  artifacts:
+    when: always
+    paths:
+      - src/test-reports
+  after_script:
+   - bash src/notify.sh
+
+deploy_to_remote:
+  stage: deploy
+  script:
+    - cd src
+    - sh deploy.sh
+  only:
+    - develop
+  when: manual
+  allow_failure: false
+  after_script:
+    - bash src/notify.sh
